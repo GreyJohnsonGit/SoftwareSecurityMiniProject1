@@ -5,6 +5,13 @@
     <title>My App Engine App</title>
   </head>
   <body>
-    <h2>WELCOME</h2>
+    <h2>WELCOME 
+      <script> 
+        let url = document.URL;
+
+        //display the last part of the url containing the username
+        document.write(url.substring(url.lastIndexOf('/')+1));
+      </script>
+    </h2>
   </body>
 </html>

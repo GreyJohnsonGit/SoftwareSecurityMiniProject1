@@ -9,25 +9,41 @@ const bodyParser = require('body-parser');
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
+//login page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, './login.html'));
 });
 
-app.get('/register', (req, res) => {
+//register page
+app.get('/register*', (req, res) => {
     res.sendFile(path.join(__dirname, './register.html'));
 });
 
-app.post('/', (req, res) => {
-    console.log(req.body.username, req.body.password);
+//dashboard page
+app.get('/dashboard*', (req, res) => {
+    res.sendFile(path.join(__dirname, './dashboard.html'));
+});
 
-    db.all(`SELECT * FROM USERS WHERE USERNAME="${req.body.username}"`, function(err, row){
-        if(row.length > 0)
-            res.sendFile(path.join(__dirname, './dashboard.html'));
+//authenticate user 
+app.get('/login', (req, res) => {
+    //console.log(req.body.username, req.body.password);
+
+    let username = req.query.username;
+    
+    db.all(`SELECT * FROM USERS WHERE USERNAME="${username}"`, function(err, row){
+        if(row.length > 0) {
+            
+            //res.sendFile(path.join(__dirname, './dashboard.html'));
+            res.redirect(`http://localhost:8080/dashboard/${username}`)
+
+        }
         else
             res.sendFile(path.join(__dirname, './login.html')); 
     });
 });
 
+
+//route to register user
 app.post('/register', (req, res) => {
     console.log(req.body.username, req.body.password);
 
@@ -40,11 +56,13 @@ app.post('/register', (req, res) => {
       db.run(sql, params,(err, result) => {
           if(err)
             throw err;
-          res.sendFile(path.join(__dirname, './dashboard.html'));
+          res.redirect(`http://localhost:8080/dashboard/${data.username}`)
           console.log("Insert was successful")
       });
 });
 
+
+//route to get all users
 app.get('/users', function(request, response) {
     db.all('SELECT * FROM USERS', function(err, rows) {
             if(err) {
