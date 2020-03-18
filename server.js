@@ -61,6 +61,26 @@ app.post('/register', (req, res) => {
       });
 });
 
+app.get('/csrf', (req, res) => {
+    res.sendFile(path.join(__dirname, './csrf.html'));
+});
+
+app.post('/changepassword', (req, res) => {
+    console.log(req.body.newPassword);
+
+    const data = {
+        newPassword: req.body.newPassword
+      }
+      let sql = 'UPDATE USERS SET password = ? WHERE username = ?';
+      let params = [data.newPassword, 'admin'];
+      db.run(sql, params,(err, result) => {
+          if(err)
+            throw err;
+          res.redirect(`http://localhost:8080/dashboard/${data.username}`)
+          console.log("Password change was successful")
+      });
+});
+
 
 //route to get all users
 app.get('/users', function(request, response) {
@@ -69,9 +89,43 @@ app.get('/users', function(request, response) {
                     console.log("Error: " + err);
             }
             else {
-                    response.send(rows);
+                    response.writeHead(200, { 'Content-Type': 'text/html' });
+                    response.write('<h1>USERS</h1>');
+                    rows.forEach(user => {
+                        response.write(`<p>${user.username}</p>`);
+                    });
+                    response.end();
             }
     });
+});
+
+app.get('/users/remove', function(request, response) {
+    db.all('SELECT * FROM USERS', function(err, rows) {
+            if(err) {
+                    console.log("Error: " + err);
+            }
+            else {
+                console.log(rows);
+            }
+    });
+    response.sendFile(path.join(__dirname, './remove_user.html'));
+});
+
+//route to remove user
+app.post('/users/remove', function(request, response) {
+    console.log(request.body.username);
+    let sql = `DELETE FROM USERS WHERE USERNAME="${request.body.username}"`;
+    
+    db.run(sql,(err, result) => {
+        if(err)
+          throw err;
+        
+        response.redirect(`http://localhost:8080/users/remove`)
+        
+    });
+    /*db.all('SELECT * FROM USERS', function(err, rows) {
+            
+    });*/
 });
 
 const PORT = process.env.PORT || 8080;

