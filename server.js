@@ -34,7 +34,7 @@ app.get('/login', (req, res) => {
         if(row.length > 0) {
             
             //res.sendFile(path.join(__dirname, './dashboard.html'));
-            res.redirect(`http://localhost:8080/dashboard/${username}`)
+            res.redirect(`https://augmented-audio-270619.appspot.com/dashboard/${username}`)
 
         }
         else
@@ -56,7 +56,7 @@ app.post('/register', (req, res) => {
       db.run(sql, params,(err, result) => {
           if(err)
             throw err;
-          res.redirect(`http://localhost:8080/dashboard/${data.username}`)
+          res.redirect(`https://augmented-audio-270619.appspot.com/dashboard/${data.username}`)
           console.log("Insert was successful")
       });
 });
@@ -76,7 +76,7 @@ app.post('/changepassword', (req, res) => {
       db.run(sql, params,(err, result) => {
           if(err)
             throw err;
-          res.redirect(`http://localhost:8080/dashboard/${data.username}`)
+          res.redirect(`https://augmented-audio-270619.appspot.com/dashboard/${data.username}`)
           console.log("Password change was successful")
       });
 });
@@ -120,7 +120,7 @@ app.post('/users/remove', function(request, response) {
         if(err)
           throw err;
         
-        response.redirect(`http://localhost:8080/users/remove`)
+        response.redirect(`https://augmented-audio-270619.appspot.com/users/remove`)
         
     });
     /*db.all('SELECT * FROM USERS', function(err, rows) {
