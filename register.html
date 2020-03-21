@@ -6,17 +6,19 @@
   </head>
   <body>
     <div>
-        <h2>REGISTER</h2>
-        <form method="POST" action="/register">
-        
-            <input type="text" name="username" id="username" placeholder="username">
-        
-        
-            <input type="text" name="password" id="password" placeholder="password">
-        
-        
-            <button type="submit" id="register">Register</button>
-        </form>
+      <h2>Register</h2>
+      <form method="POST" action="/register">
+        <label for="username">Username:</label>
+        <input type="text" name="username" id="username" placeholder="username"><br><br>
+        <label for="password">Password:</label>
+        <input type="text" name="password" id="password" placeholder="password"><br><br>
+        <input type="submit" value="Register">
+      </form>
+      <p>Already a user? <a id="loginLink">Login here</a></p>
+
+      <script>
+        document.getElementById("loginLink").href = (location.origin + "/login");
+      </script>
     </div>
   </body>
 </html>

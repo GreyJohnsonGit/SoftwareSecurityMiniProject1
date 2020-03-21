@@ -12,9 +12,14 @@
   "dependencies": {
     "bcrypt": "^4.0.1",
     "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.5",
+    "csurf": "^1.11.0",
     "express": "^4.17.1",
     "jquery": "^3.4.1",
+    "randomstring": "^1.1.5",
+    "sanitize-html": "^1.22.1",
     "sqlite3": "^4.1.1",
+    "uniqid": "^5.2.0",
     "url": "^0.11.0"
   }
 }

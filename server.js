@@ -1,131 +1,240 @@
+//Routing Tools
+const bodyParser = require('body-parser');
 const express = require('express');
+const path = require('path');
+
+//Database Tools
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('./database.db');
+
+//Security Tools
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+const sqlstring = require('sqlstring');
+const sanitizeHtml = require('sanitize-html');
+const cookieParser = require('cookie-parser');
+const cookieTable = require('./cookieTable.js');
+
+//Base URL for URLs
+const baseURL = 'http://localhost:8080'
+
+//Initialize Router
 const app = express();
 
-var sqlite3 = require('sqlite3');
-var db = new sqlite3.Database('./database.db');
-
-const path = require(`path`);
-const bodyParser = require('body-parser');
-
+//Parse URI's and Cookies
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-//login page
+/*
+*   Default Entry Point
+*   A user will be redirected to their dashboard if they are logged in.
+*   Otherwise, the user will be redirected to login.
+*/
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, './login.html'));
+    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+        res.redirect(baseURL + '/dashboard');
+    }
+    else {
+        res.redirect(baseURL + '/login');
+    }
 });
 
-//register page
-app.get('/register*', (req, res) => {
-    res.sendFile(path.join(__dirname, './register.html'));
-});
-
-//dashboard page
-app.get('/dashboard*', (req, res) => {
-    res.sendFile(path.join(__dirname, './dashboard.html'));
-});
-
-//authenticate user 
+/*
+*   Login Page
+*   A user will be redirected to their dashboard if they are logged in.
+*   Otherwise, they will be prompted to login.
+*/ 
 app.get('/login', (req, res) => {
-    //console.log(req.body.username, req.body.password);
+    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+        res.redirect(baseURL + '/dashboard');
+    }
+    else {
+        res.sendFile(path.join(__dirname, './login.html'));
+    }
+});
 
-    let username = req.query.username;
-    
-    db.all(`SELECT * FROM USERS WHERE USERNAME="${username}"`, function(err, row){
-        if(row.length > 0) {
-            
-            //res.sendFile(path.join(__dirname, './dashboard.html'));
-            res.redirect(`https://augmented-audio-270619.appspot.com/dashboard/${username}`)
+/*
+*   Login Request
+*   Services login requests.
+*   If user credentials are valid, then the current userSession cookie is consumed and
+*   a new cookie and session are generated.
+*   If user credentials are invalid, then the page is refreshed.
+*/
+app.post('/login', (req, res) => {
+    let username = '';
+    let password = '';
+    let sql = '';
+    let userCookie = {};
 
+    username = sanitizeHtml(req.body.username)
+    password = req.body.password;
+
+    sql = sqlstring.format("SELECT password FROM USERS WHERE username = ?", [username]);
+    db.all(sql, function(err, result){        
+        if(result.length && bcrypt.compareSync(password, result[0].password)) {
+            if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+                cookieTable.EatCookie(req.cookies.userSession);
+            }
+            res.clearCookie('userSession');
+            userCookie = cookieTable.GenerateCookie(username);
+            res.cookie('userSession', userCookie, {maxAge: 800000});
+            res.redirect(baseURL + '/dashboard');
         }
-        else
-            res.sendFile(path.join(__dirname, './login.html')); 
-    });
+        else {
+            res.redirect(baseURL + '/login');
+        }
+    });    
 });
 
+/*
+*   Register Page
+*   A user will be redirected to their dashboard if they are logged in.
+*   Otherwise, they will be prompted to register.
+*/ 
+app.get('/register', (req, res) => {
+    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+        res.redirect(baseURL + '/dashboard');
+    }
+    else {
+        res.sendFile(path.join(__dirname, './register.html'));
+    }
+});
 
-//route to register user
+/*
+*   Register Request
+*   Services registration requests.
+*   If user credentials are valid, then the current userSession cookie is consumed,
+*   a new cookie and session are generated, and user is added to db.
+*   If user credentials are invalid, then the page is refreshed.
+*/
 app.post('/register', (req, res) => {
-    console.log(req.body.username, req.body.password);
+    let username = '';
+    let password = '';
+    let sql = '';
+    let userCookie = {};
 
-    const data = {
-        username: req.body.username,
-        password: req.body.password,
-      }
-      let sql = 'INSERT INTO USERS VALUES(?,?)';
-      let params = [data.username, data.password];
-      db.run(sql, params,(err, result) => {
-          if(err)
-            throw err;
-          res.redirect(`https://augmented-audio-270619.appspot.com/dashboard/${data.username}`)
-          console.log("Insert was successful")
-      });
+    username = sanitizeHtml(req.body.username);
+    password = bcrypt.hashSync(req.body.password, saltRounds);
+
+    sql = sqlstring.format('INSERT INTO USERS VALUES(?,?)', [username, password]);
+    db.run(sql, (err, result) => {
+        if(err) {
+            if(err.code == 'SQLITE_CONSTRAINT') {
+                res.sendFile(path.join(__dirname, './register.html'));
+            }
+            else {
+                console.error(err);
+            }
+        }
+        else {
+            if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+                cookieTable.EatCookie(req.cookies.userSession);
+            }
+            res.clearCookie('userSession');
+            userCookie = cookieTable.GenerateCookie(username);
+            res.cookie('userSession', userCookie, {maxAge: 800000});
+            res.redirect(baseURL + '/dashboard');
+        }
+    });
 });
 
-app.get('/csrf', (req, res) => {
-    res.sendFile(path.join(__dirname, './csrf.html'));
+/*
+*   Dashboard
+*   Presents Private Account Info
+*   If user has a valid cookie, then user is allowed to acess their Dashboard Page.
+*   If user has an invalid cookie or no cookie, then the user is redirected to login.
+*/
+app.get('/dashboard', (req, res) => {
+    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+        res.sendFile(path.join(__dirname, './dashboard.html'));
+    }
+    else {
+        res.redirect(baseURL + '/login');
+    }
 });
 
+/*
+*   Change Password Request
+*   Changes Current Users Password
+*   If user has valid cookie and password, then user's password is changed.
+*   If user has invalid cookie or no cookie or invalid password, then user is 
+*   redirected to dashboard (In uncommon cases, failure will kick user to login)
+*/
 app.post('/changepassword', (req, res) => {
-    console.log(req.body.newPassword);
-
-    const data = {
-        newPassword: req.body.newPassword
-      }
-      let sql = 'UPDATE USERS SET password = ? WHERE username = ?';
-      let params = [data.newPassword, 'admin'];
-      db.run(sql, params,(err, result) => {
-          if(err)
-            throw err;
-          res.redirect(`https://augmented-audio-270619.appspot.com/dashboard/${data.username}`)
-          console.log("Password change was successful")
-      });
-});
-
-
-//route to get all users
-app.get('/users', function(request, response) {
-    db.all('SELECT * FROM USERS', function(err, rows) {
-            if(err) {
-                    console.log("Error: " + err);
-            }
-            else {
-                    response.writeHead(200, { 'Content-Type': 'text/html' });
-                    response.write('<h1>USERS</h1>');
-                    rows.forEach(user => {
-                        response.write(`<p>${user.username}</p>`);
-                    });
-                    response.end();
-            }
-    });
-});
-
-app.get('/users/remove', function(request, response) {
-    db.all('SELECT * FROM USERS', function(err, rows) {
-            if(err) {
-                    console.log("Error: " + err);
-            }
-            else {
-                console.log(rows);
-            }
-    });
-    response.sendFile(path.join(__dirname, './remove_user.html'));
-});
-
-//route to remove user
-app.post('/users/remove', function(request, response) {
-    console.log(request.body.username);
-    let sql = `DELETE FROM USERS WHERE USERNAME="${request.body.username}"`;
+    let username = '';
+    let oldPassword = '';
+    let newPassword = '';
+    let sql = '';
+    let userCookie = {};
     
-    db.run(sql,(err, result) => {
-        if(err)
-          throw err;
-        
-        response.redirect(`https://augmented-audio-270619.appspot.com/users/remove`)
-        
+    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+        username = sanitizeHtml(req.cookies.userSession.username);
+    }
+    else {
+        res.redirect(baseURL + '/login');
+    }
+    oldPassword = req.body.oldPassword;
+    newPassword = bcrypt.hashSync(req.body.newPassword, saltRounds);
+
+    sql = sqlstring.format('SELECT password FROM USERS WHERE username = ?', username)
+    db.all(sql, (err, results) => {
+        if(results.length && bcrypt.compareSync(oldPassword, results[0].password)) {
+            sql = sqlstring.format('UPDATE USERS SET password = ? WHERE username = ?', [newPassword, username]);
+            db.run(sql, (err, result) => {
+                if(!err){
+                    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+                        cookieTable.EatCookie(req.cookies.userSession);
+                    }
+                    res.clearCookie("userSession");
+                    userCookie = cookieTable.GenerateCookie(username);
+                    res.cookie('userSession', userCookie, {maxAge: 800000});
+                    res.redirect(baseURL + '/dashboard');
+                }
+            });
+        }
     });
-    /*db.all('SELECT * FROM USERS', function(err, rows) {
-            
-    });*/
+});
+
+/*
+*   Logout Request
+*   Logs Out Active User
+*   Deletes both user and server copies of session cookie and returns user
+*   to login page.
+*/
+app.post('/logout', (req, res) => {
+    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+        cookieTable.EatCookie(req.cookies.userSession);
+    }
+    res.clearCookie("userSession");
+    res.redirect(baseURL + '/login');
+});
+
+
+/*
+*   Users Page
+*   Reveals All Site Members
+*   If user has a valid cookie, then user is allowed to acess their Users Page.
+*   If user has an invalid cookie or no cookie, then the user is redirected to login.
+*/
+app.get('/users', function(req, res) {
+    db.all('SELECT * FROM USERS', function(err, results) {
+        if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.write('<h1>Super Secret User List</h1>');
+            results.forEach(user => {
+                res.write(`<p>${user.username}</p>`);
+            });
+            res.write(`
+            <form method="GET" action="/dashboard">
+                <input type="submit" value="Back to Dashboard">
+            </form>
+            `);
+            res.end();
+        }
+        else {
+            res.redirect(baseURL + '/login');
+        }
+    });
 });
 
 const PORT = process.env.PORT || 8080;

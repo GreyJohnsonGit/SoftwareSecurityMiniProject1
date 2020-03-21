@@ -5,13 +5,30 @@
     <title>My App Engine App</title>
   </head>
   <body>
-    <h2>WELCOME 
-      <script> 
-        let url = document.URL;
+    <div>
+      <h2 id="welcome"></h2>
+      <form method="GET" action="/users">
+        <input type="submit" value="Secret Users">
+      </form>
+      <h3>Change Password</h3>
+      <form method="POST" action="/changePassword">
+        <label for="oldPassword">Old Password:</label>
+        <input type="text" name="oldPassword" id="oldPassword" placeholder="old password"><br>
+        <label for="newPassword">New Password:</label>
+        <input type="text" name="newPassword" id="newPassword" placeholder="new password"><br>
+        <input type="submit" value="Change Password">
+      </form>
+      <br>
+      <form method="POST" action="/logout">
+        <input type="submit" value="Logout">
+      </form>
+    </div>
+    <script> 
+      //Parse userSession cookie
+      let user = JSON.parse(unescape(document.cookie).substr(unescape(document.cookie).indexOf("userSession=j:") + "userSession=j:".length));
 
-        //display the last part of the url containing the username
-        document.write(url.substring(url.lastIndexOf('/')+1));
-      </script>
-    </h2>
+      //Write Username
+      document.getElementById("welcome").innerHTML = "Welcome, " + user.username;
+    </script>
   </body>
 </html>
