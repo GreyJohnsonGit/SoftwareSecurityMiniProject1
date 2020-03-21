@@ -24,8 +24,8 @@
       </form>
     </div>
     <script> 
-      //Parse userSession cookie
-      let user = JSON.parse(unescape(document.cookie).substr(unescape(document.cookie).indexOf("userSession=j:") + "userSession=j:".length));
+      //Parse userSession cookie (Must be modified if more cookies are added!)
+      let user = JSON.parse(unescape(document.cookie).substr("userSession=j:".length));
 
       //Write Username
       document.getElementById("welcome").innerHTML = "Welcome, " + user.username;
