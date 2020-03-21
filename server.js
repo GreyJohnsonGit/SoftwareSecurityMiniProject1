@@ -10,11 +10,11 @@ const db = new sqlite3.Database('./database.db');
 //Security Tools
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
+const pepper = '0OpSI5p11tmIp3pp35';
 const sqlstring = require('sqlstring');
 const sanitizeHtml = require('sanitize-html');
 const cookieParser = require('cookie-parser');
 const cookieTable = require('./cookieTable.js');
-
 //Base URL for URLs
 const baseURL = 'http://localhost:8080'
 
@@ -67,7 +67,7 @@ app.post('/login', (req, res) => {
     let userCookie = {};
 
     username = sanitizeHtml(req.body.username)
-    password = req.body.password;
+    password = req.body.password + pepper;
 
     sql = sqlstring.format("SELECT password FROM USERS WHERE username = ?", [username]);
     db.all(sql, function(err, result){        
@@ -77,7 +77,7 @@ app.post('/login', (req, res) => {
             }
             res.clearCookie('userSession');
             userCookie = cookieTable.GenerateCookie(username);
-            res.cookie('userSession', userCookie, {maxAge: 800000});
+            res.cookie('userSession', userCookie, {maxAge: cookieTable.cookieLife});
             res.redirect(baseURL + '/dashboard');
         }
         else {
@@ -114,7 +114,7 @@ app.post('/register', (req, res) => {
     let userCookie = {};
 
     username = sanitizeHtml(req.body.username);
-    password = bcrypt.hashSync(req.body.password, saltRounds);
+    password = bcrypt.hashSync(req.body.password + pepper, saltRounds);
 
     sql = sqlstring.format('INSERT INTO USERS VALUES(?,?)', [username, password]);
     db.run(sql, (err, result) => {
@@ -132,7 +132,7 @@ app.post('/register', (req, res) => {
             }
             res.clearCookie('userSession');
             userCookie = cookieTable.GenerateCookie(username);
-            res.cookie('userSession', userCookie, {maxAge: 800000});
+            res.cookie('userSession', userCookie, {maxAge: cookieTable.cookieLife});
             res.redirect(baseURL + '/dashboard');
         }
     });
@@ -173,8 +173,8 @@ app.post('/changepassword', (req, res) => {
     else {
         res.redirect(baseURL + '/login');
     }
-    oldPassword = req.body.oldPassword;
-    newPassword = bcrypt.hashSync(req.body.newPassword, saltRounds);
+    oldPassword = req.body.oldPassword + pepper;
+    newPassword = bcrypt.hashSync(req.body.newPassword + pepper, saltRounds);
 
     sql = sqlstring.format('SELECT password FROM USERS WHERE username = ?', username)
     db.all(sql, (err, results) => {
@@ -187,7 +187,7 @@ app.post('/changepassword', (req, res) => {
                     }
                     res.clearCookie("userSession");
                     userCookie = cookieTable.GenerateCookie(username);
-                    res.cookie('userSession', userCookie, {maxAge: 800000});
+                    res.cookie('userSession', userCookie, {maxAge: cookieTable.cookieLife});
                     res.redirect(baseURL + '/dashboard');
                 }
             });
