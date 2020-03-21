@@ -12,8 +12,6 @@ const db = new sqlite3.Database('./database.db');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const pepper = '0OpSI5p11tmIp3pp35';
-const sqlstring = require('sqlstring');
-const sanitizeHtml = require('sanitize-html');
 const cookieTable = require('./cookieTable.js');
 
 //Base URL for URLs
@@ -67,10 +65,10 @@ app.post('/login', (req, res) => {
     let sql = '';
     let userCookie = {};
 
-    username = sanitizeHtml(req.body.username)
+    username = req.body.username;
     password = req.body.password + pepper;
 
-    sql = sqlstring.format("SELECT password FROM USERS WHERE username = ?", [username]);
+    sql = `SELECT password FROM USERS WHERE username = '${username}'`;
     db.all(sql, function(err, result){        
         if(result.length && bcrypt.compareSync(password, result[0].password)) {
             if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
@@ -78,7 +76,7 @@ app.post('/login', (req, res) => {
             }
             res.clearCookie('userSession');
             userCookie = cookieTable.GenerateCookie(username);
-            res.cookie('userSession', userCookie, {maxAge: cookieTable.cookieLife});
+            res.cookie('userSession', userCookie);
             res.redirect(baseURL + '/dashboard');
         }
         else {
@@ -114,10 +112,10 @@ app.post('/register', (req, res) => {
     let sql = '';
     let userCookie = {};
 
-    username = sanitizeHtml(req.body.username);
+    username = req.body.username;
     password = bcrypt.hashSync(req.body.password + pepper, saltRounds);
 
-    sql = sqlstring.format('INSERT INTO USERS VALUES(?,?)', [username, password]);
+    sql = `INSERT INTO USERS VALUES('${username}','${password}')`;
     db.run(sql, (err, result) => {
         if(err) {
             if(err.code == 'SQLITE_CONSTRAINT') {
@@ -133,7 +131,7 @@ app.post('/register', (req, res) => {
             }
             res.clearCookie('userSession');
             userCookie = cookieTable.GenerateCookie(username);
-            res.cookie('userSession', userCookie, {maxAge: cookieTable.cookieLife});
+            res.cookie('userSession', userCookie);
             res.redirect(baseURL + '/dashboard');
         }
     });
@@ -169,29 +167,22 @@ app.post('/changepassword', (req, res) => {
     let userCookie = {};
     
     if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
-        username = sanitizeHtml(req.cookies.userSession.username);
+        username = req.cookies.userSession.username;
     }
     else {
         res.redirect(baseURL + '/login');
     }
-    oldPassword = req.body.oldPassword + pepper;
     newPassword = bcrypt.hashSync(req.body.newPassword + pepper, saltRounds);
-
-    sql = sqlstring.format('SELECT password FROM USERS WHERE username = ?', username)
-    db.all(sql, (err, results) => {
-        if(results.length && bcrypt.compareSync(oldPassword, results[0].password)) {
-            sql = sqlstring.format('UPDATE USERS SET password = ? WHERE username = ?', [newPassword, username]);
-            db.run(sql, (err, result) => {
-                if(!err){
-                    if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
-                        cookieTable.EatCookie(req.cookies.userSession);
-                    }
-                    res.clearCookie("userSession");
-                    userCookie = cookieTable.GenerateCookie(username);
-                    res.cookie('userSession', userCookie, {maxAge: cookieTable.cookieLife});
-                    res.redirect(baseURL + '/dashboard');
-                }
-            });
+    sql = `UPDATE USERS SET password = '${newPassword}' WHERE username = '${username}'`;
+    db.run(sql, (err, result) => {
+        if(!err){
+            if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
+                cookieTable.EatCookie(req.cookies.userSession);
+            }
+            res.clearCookie("userSession");
+            userCookie = cookieTable.GenerateCookie(username);
+            res.cookie('userSession', userCookie);
+            res.redirect(baseURL + '/dashboard');
         }
     });
 });
@@ -219,23 +210,26 @@ app.post('/logout', (req, res) => {
 */
 app.get('/users', (req, res) => {
     db.all('SELECT * FROM USERS', function(err, results) {
-        if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.write('<h1>Super Secret User List</h1>');
-            results.forEach(user => {
-                res.write(`<p>${user.username}</p>`);
-            });
-            res.write(`
-            <form method="GET" action="/dashboard">
-                <input type="submit" value="Back to Dashboard">
-            </form>
-            `);
-            res.end();
-        }
-        else {
-            res.redirect(baseURL + '/login');
-        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.write('<h1>Super Secret User List</h1>');
+        results.forEach(user => {
+            res.write(`<p>${user.username}</p>`);
+        });
+        res.write(`
+        <form method="GET" action="/dashboard">
+            <input type="submit" value="Back to Dashboard">
+        </form>
+        `);
+        res.end();
     });
+});
+
+
+/* 
+*   Internal Artificial CSRF
+*/
+app.get('/csrf', (req, res) => {
+    res.sendFile(path.join(__dirname, './csrf.html'));
 });
 
 //Start Listening for Requests
