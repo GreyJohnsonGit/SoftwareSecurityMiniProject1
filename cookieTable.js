@@ -27,6 +27,9 @@ module.exports.CheckCookie = (_cookie) => {
     if(result === 'undefined')
         return false;
 
+    if(result.sessionID != _cookie.sessionID)
+        return false;
+    
     if(((new Date()).getTime() - result.birth) > cookieLife) {
             this.EatCookie(_cookie);
             return false;
