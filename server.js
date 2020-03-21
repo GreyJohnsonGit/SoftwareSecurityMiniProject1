@@ -2,6 +2,7 @@
 const bodyParser = require('body-parser');
 const express = require('express');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 
 //Database Tools
 const sqlite3 = require('sqlite3');
@@ -13,8 +14,8 @@ const saltRounds = 10;
 const pepper = '0OpSI5p11tmIp3pp35';
 const sqlstring = require('sqlstring');
 const sanitizeHtml = require('sanitize-html');
-const cookieParser = require('cookie-parser');
 const cookieTable = require('./cookieTable.js');
+
 //Base URL for URLs
 const baseURL = 'http://localhost:8080'
 
@@ -216,7 +217,7 @@ app.post('/logout', (req, res) => {
 *   If user has a valid cookie, then user is allowed to acess their Users Page.
 *   If user has an invalid cookie or no cookie, then the user is redirected to login.
 */
-app.get('/users', function(req, res) {
+app.get('/users', (req, res) => {
     db.all('SELECT * FROM USERS', function(err, results) {
         if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
             res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -237,6 +238,7 @@ app.get('/users', function(req, res) {
     });
 });
 
+//Start Listening for Requests
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}...`);
