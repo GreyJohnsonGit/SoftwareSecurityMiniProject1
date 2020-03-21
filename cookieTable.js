@@ -22,9 +22,9 @@ module.exports.EatCookie = (_cookie) => {
 }
 
 module.exports.CheckCookie = (_cookie) => {
-    let result = cookieTable.has(_cookie.username);
-    
-    if(result === 'undefined')
+    let result = cookieTable.get(_cookie.username);
+
+    if(typeof result === 'undefined')
         return false;
 
     if(result.sessionID != _cookie.sessionID)
@@ -35,7 +35,7 @@ module.exports.CheckCookie = (_cookie) => {
             return false;
     }
     
-    return true; 
+    return true;
 }
 
 module.exports.table = cookieTable;
