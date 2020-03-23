@@ -5,13 +5,9 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 
 //Database Tools
-const sqlite3 = require('sqlite3');
-const db = new sqlite3.Database('./database.db');
+const mysql = require('promise-mysql');
 
 //Security Tools
-const bcrypt = require('bcrypt');
-const saltRounds = 10;
-const pepper = '0OpSI5p11tmIp3pp35';
 const cookieTable = require('./cookieTable.js');
 
 //Base URL for URLs
@@ -23,6 +19,17 @@ const app = express();
 //Parse URI's and Cookies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+let db;
+const createPool = async () => {
+  db = await mysql.createPool({
+    host: '35.190.186.129',
+    user: 'root',
+    password: 'root',
+    database: 'myDB2'
+  });
+};
+createPool();
 
 /*
 *   Default Entry Point
@@ -66,11 +73,11 @@ app.post('/login', (req, res) => {
     let userCookie = {};
 
     username = req.body.username;
-    password = req.body.password + pepper;
+    password = req.body.password;
 
-    sql = `SELECT password FROM USERS WHERE username = '${username}'`;
-    db.all(sql, function(err, result){        
-        if(result.length && bcrypt.compareSync(password, result[0].password)) {
+    sql = `SELECT password FROM USERS WHERE username = '${username}' AND password = '${password}'`;
+    db.query(sql, (err, results) => {
+        if(results.length) {
             if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
                 cookieTable.EatCookie(req.cookies.userSession);
             }
@@ -113,10 +120,10 @@ app.post('/register', (req, res) => {
     let userCookie = {};
 
     username = req.body.username;
-    password = bcrypt.hashSync(req.body.password + pepper, saltRounds);
+    password = req.body.password
 
     sql = `INSERT INTO USERS VALUES('${username}','${password}')`;
-    db.run(sql, (err, result) => {
+    db.query(sql, (err, result) => {
         if(err) {
             if(err.code == 'SQLITE_CONSTRAINT') {
                 res.sendFile(path.join(__dirname, './register.html'));
@@ -161,7 +168,6 @@ app.get('/dashboard', (req, res) => {
 */
 app.post('/changepassword', (req, res) => {
     let username = '';
-    let oldPassword = '';
     let newPassword = '';
     let sql = '';
     let userCookie = {};
@@ -172,9 +178,9 @@ app.post('/changepassword', (req, res) => {
     else {
         res.redirect(baseURL + '/login');
     }
-    newPassword = bcrypt.hashSync(req.body.newPassword + pepper, saltRounds);
+    newPassword = req.body.newPassword;
     sql = `UPDATE USERS SET password = '${newPassword}' WHERE username = '${username}'`;
-    db.run(sql, (err, result) => {
+    db.query(sql, (err, result) => {
         if(!err){
             if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
                 cookieTable.EatCookie(req.cookies.userSession);
@@ -209,7 +215,7 @@ app.post('/logout', (req, res) => {
 *   If user has an invalid cookie or no cookie, then the user is redirected to login.
 */
 app.get('/users', (req, res) => {
-    db.all('SELECT * FROM USERS', function(err, results) {
+    db.query('SELECT username FROM USERS', function(err, results) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.write('<h1>Super Secret User List</h1>');
         results.forEach(user => {
