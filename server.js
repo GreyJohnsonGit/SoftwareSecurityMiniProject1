@@ -5,8 +5,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 
 //Database Tools
-const sqlite3 = require('sqlite3');
-const db = new sqlite3.Database('./database.db');
+const mysql = require('promise-mysql');
 
 //Security Tools
 const bcrypt = require('bcrypt');
@@ -25,6 +24,17 @@ const app = express();
 //Parse URI's and Cookies
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+let db;
+const createPool = async () => {
+  db = await mysql.createPool({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME, 
+    socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`
+  });
+};
+createPool();
 
 /*
 *   Default Entry Point
@@ -71,7 +81,7 @@ app.post('/login', (req, res) => {
     password = req.body.password + pepper;
 
     sql = sqlstring.format("SELECT password FROM USERS WHERE username = ?", [username]);
-    db.all(sql, function(err, result){        
+    db.query(sql, (err, result) => {        
         if(result.length && bcrypt.compareSync(password, result[0].password)) {
             if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
                 cookieTable.EatCookie(req.cookies.userSession);
@@ -118,7 +128,7 @@ app.post('/register', (req, res) => {
     password = bcrypt.hashSync(req.body.password + pepper, saltRounds);
 
     sql = sqlstring.format('INSERT INTO USERS VALUES(?,?)', [username, password]);
-    db.run(sql, (err, result) => {
+    db.query(sql, (err, result) => {
         if(err) {
             if(err.code == 'SQLITE_CONSTRAINT') {
                 res.sendFile(path.join(__dirname, './register.html'));
@@ -178,10 +188,10 @@ app.post('/changepassword', (req, res) => {
     newPassword = bcrypt.hashSync(req.body.newPassword + pepper, saltRounds);
 
     sql = sqlstring.format('SELECT password FROM USERS WHERE username = ?', username)
-    db.all(sql, (err, results) => {
+    db.query(sql, (err, results) => {
         if(results.length && bcrypt.compareSync(oldPassword, results[0].password)) {
             sql = sqlstring.format('UPDATE USERS SET password = ? WHERE username = ?', [newPassword, username]);
-            db.run(sql, (err, result) => {
+            db.query(sql, (err, result) => {
                 if(!err){
                     if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
                         cookieTable.EatCookie(req.cookies.userSession);
@@ -218,7 +228,7 @@ app.post('/logout', (req, res) => {
 *   If user has an invalid cookie or no cookie, then the user is redirected to login.
 */
 app.get('/users', (req, res) => {
-    db.all('SELECT * FROM USERS', function(err, results) {
+    db.query('SELECT * FROM USERS', function(err, results) {
         if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.write('<h1>Super Secret User List</h1>');
