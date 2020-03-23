@@ -16,7 +16,7 @@ const sanitizeHtml = require('sanitize-html');
 const cookieTable = require('./cookieTable.js');
 
 //Base URL for URLs
-const baseURL = 'http://localhost:8080'
+const baseURL = 'http://localhost:8080';
 
 //Initialize Router
 const app = express();
@@ -28,10 +28,10 @@ app.use(cookieParser());
 let db;
 const createPool = async () => {
   db = await mysql.createPool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME, 
-    socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`
+    host: '35.229.114.54',
+    user: 'root',
+    password: 'root',
+    database: 'myDB'
   });
 };
 createPool();
@@ -81,8 +81,8 @@ app.post('/login', (req, res) => {
     password = req.body.password + pepper;
 
     sql = sqlstring.format("SELECT password FROM USERS WHERE username = ?", [username]);
-    db.query(sql, (err, result) => {        
-        if(result.length && bcrypt.compareSync(password, result[0].password)) {
+    db.query(sql, (err, results) => {
+        if(results.length && bcrypt.compareSync(password, results[0].password)) {
             if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
                 cookieTable.EatCookie(req.cookies.userSession);
             }
@@ -128,7 +128,7 @@ app.post('/register', (req, res) => {
     password = bcrypt.hashSync(req.body.password + pepper, saltRounds);
 
     sql = sqlstring.format('INSERT INTO USERS VALUES(?,?)', [username, password]);
-    db.query(sql, (err, result) => {
+    db.query(sql, (err, results) => {
         if(err) {
             if(err.code == 'SQLITE_CONSTRAINT') {
                 res.sendFile(path.join(__dirname, './register.html'));
@@ -228,7 +228,7 @@ app.post('/logout', (req, res) => {
 *   If user has an invalid cookie or no cookie, then the user is redirected to login.
 */
 app.get('/users', (req, res) => {
-    db.query('SELECT * FROM USERS', function(err, results) {
+    db.query('SELECT username FROM USERS', (err, results) => {
         if(req.cookies && req.cookies.userSession && cookieTable.CheckCookie(req.cookies.userSession)) {
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.write('<h1>Super Secret User List</h1>');
